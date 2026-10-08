@@ -181,7 +181,6 @@ footer.pagefoot{margin-top:50px;padding-top:18px;border-top:1px solid var(--bord
   .main{padding:16px 16px 70px}
 }
 </style>
-</head><body style="margin:0">
 
 <div class="gate" id="gate">
   <form id="gateForm" autocomplete="off">
@@ -556,6 +555,7 @@ function updateProgress(){
 var ENDPOINT = "https://script.google.com/macros/s/AKfycbwNu4RJAx99wqF2o-aXF5p6GRp6ARkNmuod_aGO7imXpHVg30AZ_g292vlFW120uts/exec";
 var student = {nome:"", numero:""};
 var scoredTotal = 0, scoreAnswers = {}, sendTimer = null, sendFails = 0;
+var restorers = {};
 function setStatus(txt, cls){ var s=document.getElementById('spStatus'); s.textContent=txt; s.className='st '+(cls||''); }
 function scoreNow(){
   var n=0, r=0;
@@ -568,7 +568,7 @@ function renderScore(){
   document.getElementById('spCount').textContent = s.acertos+'/'+scoredTotal+' certas';
 }
 function sendScore(){
-  if(!ENDPOINT || false || !student.numero) { setStatus('modo de teste', ''); return; }
+  if(!ENDPOINT || ENDPOINT.indexOf('__')===0 || !student.numero) { setStatus('modo de teste', ''); return; }
   var s=scoreNow();
   setStatus('a enviar…','');
   fetch(ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
@@ -592,12 +592,34 @@ function recordAnswer(id, ok){
     var err=document.getElementById('gateErr');
     if(nome.length<3){ err.textContent='Escreve o teu nome completo.'; return; }
     if(!/^[A-Za-z0-9._\/-]{3,30}$/.test(num)){ err.textContent='O número deve ter entre 3 e 30 caracteres, sem espaços.'; return; }
-    student={nome:nome, numero:num};
-    try{ localStorage.setItem('forense7_nome',nome); localStorage.setItem('forense7_num',num); }catch(e){}
-    gate.hidden=true;
-    document.getElementById('scorepill').hidden=false;
-    renderScore();
-    sendScore();
+    var btn=form.querySelector('button[type=submit],button:not([type])');
+    var live = ENDPOINT && ENDPOINT.indexOf('__')!==0;
+    function enter(){
+      student={nome:nome, numero:num};
+      try{ localStorage.setItem('forense7_nome',nome); localStorage.setItem('forense7_num',num); }catch(e){}
+      gate.hidden=true;
+      document.getElementById('scorepill').hidden=false;
+      renderScore();
+      sendScore();
+    }
+    if(!live){ err.textContent=''; enter(); return; }
+    err.textContent='A verificar se já tens progresso guardado…';
+    if(btn) btn.disabled=true;
+    fetch(ENDPOINT+'?numero='+encodeURIComponent(num)).then(function(r){ return r.json(); }).then(function(d){
+      if(btn) btn.disabled=false; err.textContent='';
+      var n=0;
+      if(d && d.found && d.answers){
+        Object.keys(d.answers).forEach(function(id){
+          if(restorers[id]){ scoreAnswers[id]=!!d.answers[id]; restorers[id](!!d.answers[id]); n++; }
+        });
+        if(d.nome && d.nome.toLowerCase()!==nome.toLowerCase()){ nome=d.nome; }
+      }
+      enter();
+      if(n){ setStatus('progresso recuperado ✓ ('+n+' respostas)','ok'); }
+    }).catch(function(){
+      if(btn) btn.disabled=false;
+      err.textContent='Não consegui verificar o teu progresso guardado (sem ligação?). Tenta outra vez, para não perderes o que já fizeste.';
+    });
   });
 })();
 
@@ -607,6 +629,13 @@ function wireSimpleQ(qEl, idForProgress){
   var opts = qEl.querySelectorAll('.opt');
   var fb = qEl.querySelector('.fb');
   var answered = false;
+  restorers[idForProgress] = function(ok){
+    answered = true;
+    opts.forEach(function(b){ b.disabled = true; if(b.dataset.ok==='1') b.classList.add('correct'); });
+    fb.textContent = ok ? 'Correcto (guardado).' : 'Já respondida antes — a opção correcta está a verde.';
+    fb.className = 'fb show ' + (ok?'ok':'bad');
+    markOnce(idForProgress);
+  };
   opts.forEach(function(btn){
     btn.addEventListener('click', function(){
       if(answered) return;
@@ -741,6 +770,13 @@ sortItems.forEach(function(item,idx){
   el.innerHTML = '<span style="font-size:13.5px">'+item.s+'</span><div class="btns"></div><div class="fb" style="font-size:12.5px"></div>';
   var btns = el.querySelector('.btns');
   var fb = el.querySelector('.fb');
+  restorers['sort'+idx] = function(ok){
+    el.classList.add('done');
+    Array.prototype.forEach.call(btns.children, function(x){ x.disabled=true; if(x.textContent===item.ok) x.style.borderColor='var(--ok)'; });
+    fb.classList.add('show'); fb.style.color = ok ? 'var(--ok)':'var(--bad)';
+    fb.textContent = ok ? 'Correcto: '+item.ok+'.' : 'Resposta correcta: '+item.ok+'.';
+    markOnce('sort'+idx);
+  };
   ["Lógica","Física","Arquivo"].forEach(function(opt){
     var b = document.createElement('button');
     b.className='btn sm'; b.textContent=opt;
@@ -984,6 +1020,15 @@ finalItems.forEach(function(item,idx){
   var optsEl = el.querySelector('.opts');
   var fb = el.querySelector('.fb');
   var answered = false;
+  restorers['final'+idx] = function(ok){
+    answered = true;
+    Array.prototype.forEach.call(optsEl.children, function(x){ x.disabled=true; if(x.dataset.ok==='1') x.classList.add('correct'); });
+    fb.textContent = ok?'Correcto (guardado).':'Já respondida antes — resposta correcta a verde.';
+    fb.className = 'fb show '+(ok?'ok':'bad');
+    finalAnswered++; if(ok) finalScore++;
+    renderScoreboard();
+    markOnce('final'+idx);
+  };
   item.opts.forEach(function(o,i){
     var b = document.createElement('button'); b.className='opt'; b.textContent=o; b.dataset.ok=(i===item.ok)?'1':'0';
     b.addEventListener('click', function(){
@@ -1010,7 +1055,4 @@ updateProgress();
 renderScore();
 })();
 </script>
-
-
-
 </body></html>
