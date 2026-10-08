@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Laboratório Forense IoT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: fixed left case-file nav (top tabs on phone) + scrolling evidence-card content area */
+:root{
+  --bg:#f3f1ea; --surface:#ffffff; --surface-2:#ece8dc; --fg:#1b1d1e; --muted:#5b5a52;
+  --accent:#0e6e5d; --accent-ink:#ffffff; --warn:#a4460c; --border:#d8d3c2; --code-bg:#1b1d1e; --code-fg:#d7f5ea;
+  --ok:#0e6e5d; --bad:#a4460c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171a; --surface:#1d2024; --surface-2:#23262b; --fg:#ecebe5; --muted:#a2a39b;
+    --accent:#36d6ad; --accent-ink:#0b1210; --warn:#ff9a52; --border:#34373c; --code-bg:#0c0e10; --code-fg:#a6f5da;
+    --ok:#36d6ad; --bad:#ff9a52; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171a; --surface:#1d2024; --surface-2:#23262b; --fg:#ecebe5; --muted:#a2a39b;
+  --accent:#36d6ad; --accent-ink:#0b1210; --warn:#ff9a52; --border:#34373c; --code-bg:#0c0e10; --code-fg:#a6f5da;
+  --ok:#36d6ad; --bad:#ff9a52; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:'IBM Plex Sans',system-ui,sans-serif;margin:0}
+h1,h2,h3{font-family:'Archivo',system-ui,sans-serif;text-wrap:balance;margin:0}
+code,.mono{font-family:'IBM Plex Mono',monospace}
+p{line-height:1.55;color:var(--fg)}
+.muted{color:var(--muted)}
+.wrap{display:flex;min-height:100%;max-width:1280px;margin:0 auto}
+.side{width:230px;flex:none;padding:20px 14px;border-right:1px solid var(--border);position:sticky;top:env(safe-area-inset-top,0px);align-self:flex-start;max-height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)}
+.brand b{font-family:'Archivo';font-size:14px;letter-spacing:.02em}
+.navitem{display:flex;gap:8px;align-items:baseline;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--muted);border:1px solid transparent}
+.navitem .n{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);min-width:18px}
+.navitem:hover{background:var(--surface-2)}
+.navitem.active{background:var(--surface);border-color:var(--border);color:var(--fg);font-weight:600}
+.navitem.active .n{color:var(--accent)}
+.progress-mini{margin-top:16px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.progress-mini .bar{height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden;margin-top:6px}
+.progress-mini .bar i{display:block;height:100%;background:var(--accent);width:0%;transition:width .4s}
+.main{flex:1;min-width:0;padding:22px 24px 80px}
+.topbar{display:none}
+.section{display:none}
+.section.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.eyebrow{font-family:'IBM Plex Mono';font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.section h2{font-size:26px;margin-bottom:6px}
+.lede{color:var(--muted);margin:6px 0 20px;font-size:15.5px;max-width:none}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.grid{display:grid;gap:14px}
+.grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.grid.cols-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:820px){.grid.cols-2,.grid.cols-3{grid-template-columns:1fr}}
+.stack{display:flex;flex-direction:column;gap:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-family:'Archivo';font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+.tbl-wrap table{border:none}
+.pill{display:inline-flex;align-items:center;gap:5px;font-family:'IBM Plex Mono';font-size:11px;padding:3px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted)}
+.pill.accent{background:color-mix(in srgb, var(--accent) 16%, transparent);color:var(--accent);border-color:color-mix(in srgb, var(--accent) 40%, transparent)}
+.pill.warn{background:color-mix(in srgb, var(--warn) 16%, transparent);color:var(--warn);border-color:color-mix(in srgb, var(--warn) 40%, transparent)}
+.flip{perspective:1200px;height:148px;cursor:pointer}
+.flip-in{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flip.on .flip-in{transform:rotateY(180deg)}
+.flip-f,.flip-b{position:absolute;inset:0;backface-visibility:hidden;border-radius:12px;border:1px solid var(--border);padding:14px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.flip-f{background:var(--surface)}
+.flip-b{background:var(--surface-2);transform:rotateY(180deg)}
+.flip-f .tap{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--muted);position:absolute;bottom:10px;right:12px}
+.btn{font-family:'IBM Plex Sans';font-weight:600;font-size:13.5px;border:1px solid var(--border);background:var(--surface);color:var(--fg);padding:9px 14px;border-radius:9px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.sm{padding:6px 10px;font-size:12.5px;border-radius:7px}
+.btn[disabled]{opacity:.45;cursor:default}
+.termbox{background:var(--code-bg);color:var(--code-fg);font-family:'IBM Plex Mono';font-size:12.5px;border-radius:10px;padding:12px 14px;overflow-x:auto;line-height:1.6}
+.termbox .c{color:#7a8a86}
+.inline-code{font-family:'IBM Plex Mono';background:var(--surface-2);padding:1px 6px;border-radius:5px;font-size:.9em;border:1px solid var(--border)}
+input[type=text],select,textarea{font-family:'IBM Plex Sans';font-size:13.5px;background:var(--surface);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:9px 10px;width:100%}
+textarea{font-family:'IBM Plex Sans';resize:vertical;min-height:80px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row > *{flex:1;min-width:140px}
+.q{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface)}
+.q .opt{display:block;width:100%;text-align:left;margin-top:7px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;font-size:13.5px;color:var(--fg)}
+.q .opt:hover{border-color:var(--accent)}
+.q .opt.correct{border-color:var(--ok);background:color-mix(in srgb, var(--ok) 14%, var(--surface));font-weight:600}
+.q .opt.wrong{border-color:var(--bad);background:color-mix(in srgb, var(--bad) 14%, var(--surface))}
+.q .fb{margin-top:10px;font-size:13px;padding:9px 11px;border-radius:8px;display:none}
+.q .fb.show{display:block}
+.q .fb.ok{background:color-mix(in srgb, var(--ok) 16%, transparent);color:var(--ok)}
+.q .fb.bad{background:color-mix(in srgb, var(--bad) 16%, transparent);color:var(--bad)}
+.sortcard{border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.sortcard .btns{display:flex;gap:6px;flex-wrap:wrap}
+.sortcard.done{opacity:.6}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.mqtt-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:820px){.mqtt-wrap{grid-template-columns:1fr}}
+.sub-item{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px}
+.feed{height:220px;overflow-y:auto;background:var(--code-bg);border-radius:10px;padding:10px;font-family:'IBM Plex Mono';font-size:12px;color:var(--code-fg)}
+.feed .ln{margin-bottom:4px}
+.feed .ln .t{color:#7a8a86}
+footer.pagefoot{margin-top:50px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12.5px}
+.navlink{color:var(--accent);font-weight:600;cursor:pointer}
+.scoreboard{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.scoreboard .sb{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:10px 14px;font-size:13px;min-width:120px}
+.scoreboard .sb b{display:block;font-family:'Archivo';font-size:20px}
+.reveal{border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13.5px;background:var(--surface-2);display:none}
+.reveal.show{display:block}
+.hero{position:relative;border-radius:18px;overflow:hidden;background:linear-gradient(165deg,var(--surface) 0%,var(--surface-2) 100%);border:1px solid var(--border);padding:56px 44px;min-height:calc(100vh - 44px);display:flex;flex-direction:column;justify-content:center}
+.hero::before{content:"";position:absolute;inset:0;opacity:.5;pointer-events:none;
+  background-image:radial-gradient(color-mix(in srgb, var(--accent) 35%, transparent) 1.4px, transparent 1.4px);
+  background-size:26px 26px;mask-image:linear-gradient(120deg, black, transparent 70%)}
+.hero-grid{position:relative;display:grid;grid-template-columns:1.2fr .8fr;gap:44px;align-items:center}
+@media(max-width:980px){.hero-grid{grid-template-columns:1fr}.hero{padding:34px 20px;min-height:auto}}
+.hero .eyebrow{font-size:12.5px}
+.hero h1{font-size:clamp(34px,5vw,58px);line-height:1.04;margin:10px 0 18px;letter-spacing:-.01em}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero .lede{font-size:16.5px;max-width:52ch;margin:0 0 26px}
+.hero-cta{display:flex;gap:10px;flex-wrap:wrap}
+.hero-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:4px}
+.hero-stats .st{min-width:0;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:16px 16px}
+.hero-stats .st b{font-family:'Archivo';font-size:30px;display:block;color:var(--accent);letter-spacing:-.01em}
+.hero-stats .st span{font-size:12px;color:var(--muted)}
+.hero-panel{position:relative;border:1px solid var(--border);border-radius:14px;background:var(--code-bg);color:var(--code-fg);font-family:'IBM Plex Mono';font-size:12.5px;padding:18px 20px;line-height:1.85;box-shadow:0 18px 50px -24px rgba(0,0,0,.55)}
+.hero-panel .dots{display:flex;gap:6px;margin-bottom:12px}
+.hero-panel .dots i{width:9px;height:9px;border-radius:50%;background:#555;display:block}
+.hero-panel .k{color:#7a8a86}
+.hero-panel .v{color:var(--code-fg)}
+.hero-panel .ok{color:#36d6ad}
+.quicknav{position:relative;margin-top:34px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:980px){.quicknav{grid-template-columns:repeat(2,1fr)}}
+.quicknav a{display:block;border:1px solid var(--border);background:var(--surface);border-radius:11px;padding:13px 14px;cursor:pointer;text-decoration:none;color:var(--fg)}
+.quicknav a:hover{border-color:var(--accent)}
+.quicknav a .n{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--accent);display:block;margin-bottom:4px}
+.quicknav a .t{font-size:13px;font-weight:600}
+
+/* ---- device/firmware triage simulators ---- */
+.devsim{display:grid;grid-template-columns:1.1fr 1.4fr;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+@media(max-width:860px){.devsim{grid-template-columns:1fr}}
+.devsim-head{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.devsim-head .dev{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+.devsim-head b{font-size:12.5px;font-family:'IBM Plex Mono'}
+.ftree{background:var(--surface);padding:6px;border-right:1px solid var(--border);max-height:360px;overflow:auto}
+@media(max-width:860px){.ftree{border-right:none;border-bottom:1px solid var(--border)}}
+.fitem{display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer;padding:8px 10px;border-radius:7px;font-family:'IBM Plex Mono';font-size:12px;color:var(--fg)}
+.fitem:hover{background:var(--surface-2)}
+.fitem.active{background:color-mix(in srgb, var(--accent) 16%, transparent);color:var(--accent)}
+.fitem .path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbadge{flex:none;font-family:'IBM Plex Mono';font-size:9.5px;padding:1px 6px;border-radius:999px;border:1px solid var(--border)}
+.fbadge.ok{color:var(--ok);border-color:var(--ok)}
+.fbadge.rec{color:var(--warn);border-color:var(--warn)}
+.fdetail{padding:16px;background:var(--surface)}
+.fdetail .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:12.5px;margin-top:10px}
+.fdetail .kv b{color:var(--muted);font-weight:500}
+.fdetail .kv span{font-family:'IBM Plex Mono';font-size:12px;word-break:break-all}
+.fdetail .note{margin-top:12px;font-size:13px;padding:10px 12px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border)}
+.binwalk-out{background:var(--code-bg);color:var(--code-fg);font-family:'IBM Plex Mono';font-size:11.5px;border-radius:10px;padding:12px 14px;overflow-x:auto;line-height:1.7;white-space:pre}
+.extree{margin-top:10px;font-family:'IBM Plex Mono';font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:none}
+.extree.show{display:block}
+.extree .ln{padding:2px 0}
+.extree .hl{color:var(--bad);font-weight:600;background:color-mix(in srgb, var(--bad) 16%, transparent);padding:1px 4px;border-radius:4px}
+.gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+.gate[hidden]{display:none}
+.gate form{width:100%;max-width:440px;border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:28px}
+.gate h2{font-size:24px;margin:6px 0 8px}
+.gate label{display:block;font-size:12.5px;font-weight:600;margin:14px 0 5px}
+.gate .err{color:var(--bad);font-size:12.5px;margin-top:10px;min-height:16px}
+.scorepill{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:20;display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:12.5px;box-shadow:0 8px 24px -12px rgba(0,0,0,.5)}
+.scorepill b{font-family:'Archivo';font-size:15px;color:var(--accent)}
+.scorepill .st{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted)}
+.scorepill .st.ok{color:var(--ok)}
+.scorepill .st.bad{color:var(--bad)}
+.topnav-mobile{display:none}
+@media(max-width:900px){
+  .side{display:none}
+  .topnav-mobile{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);border-bottom:1px solid var(--border);z-index:5}
+  .topnav-mobile .navitem{white-space:nowrap}
+  .main{padding:16px 16px 70px}
+}
+</style>
+</head><body style="margin:0">
+
+<div class="gate" id="gate">
+  <form id="gateForm" autocomplete="off">
+    <div class="eyebrow">Aula VII · Forense IoT e Dispositivos Móveis</div>
+    <h2>Identificação do estudante</h2>
+    <p class="muted" style="font-size:13.5px;margin:0">As tuas respostas são registadas e a classificação final (0 a 20) é enviada ao docente. Usa sempre o mesmo nome e número.</p>
+    <label for="stuNome">Nome completo</label>
+    <input type="text" id="stuNome" maxlength="80" placeholder="ex.: Maria Fernandes">
+    <label for="stuNum">Número de estudante</label>
+    <input type="text" id="stuNum" maxlength="30" placeholder="ex.: 20240123" inputmode="numeric">
+    <div class="err" id="gateErr"></div>
+    <button class="btn primary" type="submit" style="width:100%;margin-top:6px">Começar</button>
+  </form>
+</div>
+<div class="scorepill" id="scorepill" hidden>
+  <span>Nota actual <b id="spNota">0.0</b>/20</span>
+  <span class="mono" id="spCount" style="font-size:11px;color:var(--muted)">0/0</span>
+  <span class="st" id="spStatus">—</span>
+</div>
+<div class="topnav-mobile" id="mobnav"></div>
+<div class="wrap">
+  <nav class="side">
+    <div class="brand"><span class="dot"></span><b>FORENSE IoT &amp; MÓVEIS</b></div>
+    <div id="navlist"></div>
+    <div class="progress-mini">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px"><span class="muted">Progresso dos exercícios</span><span class="mono" id="progpct">0%</span></div>
+      <div class="bar"><i id="progbar"></i></div>
+    </div>
+  </nav>
+
+  <main class="main">
+
+  <section class="section active" data-sec="intro">
+    <div class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Aula VII · PTP II — Laboratório de Redes e Dados Forensic</div>
+          <h1>Forense <em>IoT</em> e<br>Dispositivos Móveis</h1>
+          <p class="lede">Material prático interactivo da Aula VII. Como o acesso a hardware IoT e smartphones reais é limitado, este material usa simulações, comandos reais e exercícios de decisão para construir a mesma compreensão que um laboratório físico daria — protocolo a protocolo, ferramenta a ferramenta.</p>
+          <div class="hero-cta">
+            <span class="btn primary navlink" data-goto="conceitos" style="display:inline-flex">Começar pelos conceitos de IoT →</span>
+            <span class="btn navlink" data-goto="protocolos" style="display:inline-flex">Ir direito ao simulador MQTT</span>
+          </div>
+          <div class="hero-stats">
+            <div class="st"><b>18 mM+</b><span>dispositivos IoT ligados em 2025 (Statista)</span></div>
+            <div class="st"><b>3</b><span>protocolos forenses-chave: MQTT, CoAP, RTSP</span></div>
+            <div class="st"><b>3</b><span>tipos de aquisição móvel: lógica, física, arquivo</span></div>
+            <div class="st"><b>15+</b><span>exercícios e simuladores interactivos</span></div>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div><span class="k">$</span> <span class="v">mosquitto_sub -h localhost -t "casa/sala/temperatura"</span></div>
+          <div><span class="k">$</span> <span class="v">mosquitto_pub -h localhost -t "casa/sala/temperatura" -m "23.5"</span></div>
+          <div><span class="ok">casa/sala/temperatura 23.5</span> <span class="k">// texto simples, sem TLS</span></div>
+          <div style="margin-top:10px"><span class="k">$</span> <span class="v">tcpdump -i wlan0 -w iot_stream.pcap</span></div>
+          <div><span class="k">$</span> <span class="v">sha256sum iot_stream.pcap > hash_inicial.txt</span></div>
+          <div style="margin-top:10px" class="k">// evidência volátil — captura agora, preserva sempre</div>
+        </div>
+      </div>
+      <div class="quicknav">
+        <a class="navlink" data-goto="protocolos"><span class="n">02 · SIMULADOR</span><span class="t">MQTT publish / subscribe</span></a>
+        <a class="navlink" data-goto="moveis"><span class="n">04 · CLASSIFICAÇÃO</span><span class="t">Lógica, física ou arquivo?</span></a>
+        <a class="navlink" data-goto="captura"><span class="n">06 · CONSTRUTOR</span><span class="t">Filtros Wireshark</span></a>
+        <a class="navlink" data-goto="revisao"><span class="n">09 · REVISÃO</span><span class="t">Quiz final com pontuação</span></a>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-size:15px;margin-bottom:8px">Como usar este material</h3>
+      <p style="font-size:13.5px">Percorre as secções na barra lateral (ou no menu superior em ecrã pequeno), por ordem. Cada secção teórica é seguida de um exercício — simulador, quiz ou classificação — que testa se compreendeste essa parte específica da matéria antes de avançares. No fim há uma revisão global com pontuação. Nada aqui fica gravado: é uma ferramenta de estudo, não uma entrega.</p>
+    </div>
+  </section>
+
+  <section class="section" data-sec="conceitos">
+    <div class="eyebrow">01 · Teoria</div>
+    <h2>Conceitos Fundamentais de IoT</h2>
+    <p class="lede">A Internet das Coisas (IoT) é uma rede de objectos físicos equipados com sensores, software e conectividade, que comunicam dados sem intervenção humana directa (ISO/IEC 30141:2018 — IoT Reference Architecture).</p>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:10px">Exemplos de dispositivos</h3>
+        <div class="tag-row">
+          <span class="pill">Câmeras de segurança IP</span>
+          <span class="pill">Smartwatches / pulseiras fitness</span>
+          <span class="pill">Sensores domésticos (temp., portas, luzes)</span>
+          <span class="pill">Assistentes virtuais (Alexa, Google Home)</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:10px">Características principais</h3>
+        <div class="tag-row">
+          <span class="pill accent">Conectividade constante</span>
+          <span class="pill accent">Geração contínua de dados</span>
+          <span class="pill accent">Processamento distribuído</span>
+          <span class="pill accent">Interoperabilidade entre dispositivos</span>
+        </div>
+      </div>
+    </div>
+    <h3 style="font-size:14px;margin:20px 0 10px">Clica em cada cartão para veres a relevância forense</h3>
+    <div class="grid cols-3" id="flipgrid"></div>
+    <div class="q" style="margin-top:20px" data-q="c1">
+      <b>Verificação rápida</b>
+      <p style="margin:6px 0 0;font-size:13.5px">Qual característica da IoT é a que mais complica a <i>preservação</i> de evidências, por tornar os dados mais efémeros?</p>
+      <div class="opts">
+        <button class="opt" data-ok="0">Interoperabilidade entre dispositivos</button>
+        <button class="opt" data-ok="1">Geração contínua de dados</button>
+        <button class="opt" data-ok="0">Processamento distribuído</button>
+      </div>
+      <div class="fb"></div>
+    </div>
+  </section>
+
+  <section class="section" data-sec="protocolos">
+    <div class="eyebrow">02 · Teoria + Simulador</div>
+    <h2>Protocolos IoT</h2>
+    <p class="lede">Os protocolos de comunicação são fundamentais para a investigação forense em dispositivos IoT: compreendê-los permite identificar, capturar e analisar correctamente o tráfego de rede, preservando a evidência digital.</p>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Protocolo</th><th>Características</th><th>Aplicação forense</th></tr>
+        <tr><td><b>MQTT</b><br><span class="muted" style="font-size:12px">Message Queuing Telemetry Transport</span></td><td>Leve, modelo publish/subscribe, ideal para sensores</td><td>Análise de tópicos e mensagens em brokers</td></tr>
+        <tr><td><b>CoAP</b><br><span class="muted" style="font-size:12px">Constrained Application Protocol</span></td><td>RESTful, para dispositivos limitados, usa UDP</td><td>Extracção de comandos e respostas</td></tr>
+        <tr><td><b>RTSP</b><br><span class="muted" style="font-size:12px">Real Time Streaming Protocol</span></td><td>Streaming de vídeo, usado por câmeras IP</td><td>Captura de fluxos de vídeo e áudio</td></tr>
+      </table>
+    </div>
+
+    <h3 style="font-size:16px;margin:24px 0 4px">Simulador MQTT: publish / subscribe</h3>
+    <p class="lede" style="margin-top:4px">Um "sensor" publica numa mensagem num tópico; um "investigador" que subscreveu esse tópico (ligado ao broker, como fazes com <code class="mono">mosquitto_sub</code>) recebe a mensagem em texto simples — exactamente como seria visto no Wireshark sem TLS. Subscreve um tópico, publica mensagens noutros, e repara no que chega ao feed.</p>
+    <div class="card">
+      <div class="mqtt-wrap">
+        <div>
+          <div class="row">
+            <input type="text" id="subTopic" placeholder="tópico a subscrever, ex: casa/sala/temperatura">
+            <button class="btn" id="btnSub">Subscrever</button>
+          </div>
+          <div id="subList" style="margin-top:10px"></div>
+          <div class="row" style="margin-top:14px">
+            <input type="text" id="pubTopic" placeholder="tópico, ex: casa/porta/principal">
+            <input type="text" id="pubMsg" placeholder="mensagem, ex: aberta">
+          </div>
+          <button class="btn primary" id="btnPub" style="margin-top:8px;width:100%">mosquitto_pub →</button>
+          <p class="muted" style="font-size:11.5px;margin-top:8px">Experimenta publicar em <code class="mono">casa/sala/temperatura</code> sem estar subscrito — repara que o feed não recebe nada: é exactamente isso que torna a captura de pacotes (não apenas a subscrição) necessária numa investigação.</p>
+        </div>
+        <div>
+          <div class="muted" style="font-size:11.5px;margin-bottom:6px">mqtt_traffic.pcap — feed do broker (texto simples, sem TLS)</div>
+          <div class="feed" id="feed"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q" style="margin-top:20px" data-q="p1">
+      <b>Associa o protocolo à sua assinatura em Wireshark</b>
+      <p style="margin:6px 0 0;font-size:13.5px">Capturaste tráfego de uma câmara IP durante uma chamada de vídeo-vigilância remota. Qual filtro de exibição isola correctamente o protocolo responsável por esse streaming?</p>
+      <div class="opts">
+        <button class="opt" data-ok="0"><code class="mono">mqtt</code></button>
+        <button class="opt" data-ok="1"><code class="mono">rtsp</code></button>
+        <button class="opt" data-ok="0"><code class="mono">coap</code></button>
+      </div>
+      <div class="fb"></div>
+    </div>
+  </section>
+
+  <section class="section" data-sec="riscos">
+    <div class="eyebrow">03 · Teoria + Quiz</div>
+    <h2>Riscos e Ameaças na IoT</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px">Principais vulnerabilidades</h3>
+        <ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.7">
+          <li>Firmware desactualizado</li>
+          <li>Uso de senhas padrão (ex.: <code class="mono">admin/admin</code>)</li>
+          <li>Falta de criptografia na comunicação</li>
+          <li>Portas de rede expostas desnecessariamente</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px">Ataques reais</h3>
+        <p style="font-size:13.5px"><b>Botnet Mirai (2016–2025):</b> compromete câmaras IoT e routers (muitas vezes via senhas padrão) para ataques DDoS massivos.</p>
+        <p style="font-size:13.5px"><b>Eavesdropping:</b> interceptação de dados sensíveis transmitidos sem TLS — o mesmo princípio que viste no simulador MQTT acima.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;border-color:var(--warn)">
+      <h3 style="font-size:14px;margin-bottom:8px;color:var(--warn)">Riscos forenses específicos</h3>
+      <div class="tag-row">
+        <span class="pill warn">Logs voláteis, facilmente sobrescritos</span>
+        <span class="pill warn">Cadeia de custódia comprometida (multi-fabricante)</span>
+        <span class="pill warn">Difícil preservar evidência em tempo real</span>
+      </div>
+    </div>
+    <h3 style="font-size:16px;margin:22px 0 10px">Exercício: vulnerabilidade → risco forense</h3>
+    <p class="lede" style="margin-top:0">Para cada vulnerabilidade, escolhe a consequência forense mais directa.</p>
+    <div class="stack" id="riskquiz"></div>
+  </section>
+
+  <section class="section" data-sec="moveis">
+    <div class="eyebrow">04 · Teoria + Classificação</div>
+    <h2>Forense em Dispositivos Móveis</h2>
+    <p class="lede">Objectivo: identificar e preservar dados de smartphones (Android, iOS) para investigações forenses.</p>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Tipo</th><th>Descrição</th><th>Exemplo</th></tr>
+        <tr><td><b>Lógica</b></td><td>Colecta de dados acessíveis (SMS, contactos, apps)</td><td>ADB (Android Debug Bridge)</td></tr>
+        <tr><td><b>Física</b></td><td>Cópia bit a bit da memória</td><td>JTAG, Chip-off</td></tr>
+        <tr><td><b>Arquivo</b></td><td>Exportação de containers específicos</td><td>WhatsApp DB via Cellebrite UFED</td></tr>
+      </table>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3 style="font-size:14px;margin-bottom:8px">Desafios</h3>
+      <div class="tag-row">
+        <span class="pill">Criptografia avançada (FileVault, Android FBE)</span>
+        <span class="pill">Bloqueios de root / jailbreak</span>
+        <span class="pill">Volatilidade de dados (RAM, cache de apps)</span>
+        <span class="pill">Diversidade de hardware e software</span>
+      </div>
+    </div>
+    <h3 style="font-size:16px;margin:22px 0 10px">Exercício: classifica o cenário</h3>
+    <p class="lede" style="margin-top:0">Lê cada cenário de aquisição e classifica-o como Lógica, Física ou Arquivo.</p>
+    <div class="grid cols-2" id="sortgrid"></div>
+
+    <h3 style="font-size:16px;margin:30px 0 10px">Simulador: triagem de um smartphone danificado e recuperado</h3>
+    <p class="lede" style="margin-top:0">Cenário: um Android com o ecrã partido foi apreendido. Como o aparelho não desbloqueia, o laboratório fez chip-off à memória (aquisição física) e, à parte, exportou o container do WhatsApp com UFED (aquisição de arquivo). O resultado é a árvore de ficheiros abaixo — exactamente o tipo de dado que inspeccionarias no Autopsy. Clica em cada item para ver os metadados que um investigador analisaria.</p>
+    <div class="devsim">
+      <div class="devsim-head"><span class="dev"></span><b>imagem_fisica_mmcblk0p12.dd</b><span class="muted" style="font-size:11.5px">· 29 GB · Android 13 · montado em modo só-leitura</span></div>
+      <div class="ftree" id="ftree"></div>
+      <div class="fdetail" id="fdetail"></div>
+    </div>
+    <div class="stack" id="devsimquiz" style="margin-top:16px"></div>
+  </section>
+
+  <section class="section" data-sec="ferramentas">
+    <div class="eyebrow">05 · Teoria + Associação</div>
+    <h2>Ferramentas Principais</h2>
+    <div class="grid cols-2" id="toolgrid"></div>
+    <h3 style="font-size:16px;margin:22px 0 10px">Exercício: ferramenta certa para a tarefa</h3>
+    <div class="stack" id="toolquiz"></div>
+  </section>
+
+  <section class="section" data-sec="captura">
+    <div class="eyebrow">06 · Prática + Construtor de filtros</div>
+    <h2>Captura e Extracção IoT</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px">Captura de tráfego</h3>
+        <p style="font-size:13.5px">Configura mirroring na rede IoT (switch / SPAN port) e utiliza Wireshark ou tcpdump:</p>
+        <div class="termbox">sudo tcpdump -i wlan0 -w iot_stream.pcap</div>
+        <p style="font-size:13.5px;margin-top:10px" class="muted">A captura deve ser realizada por períodos prolongados para identificar padrões de comunicação.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px">Extracção de dados</h3>
+        <p style="font-size:13.5px">Usa <code class="mono">binwalk</code> ou <code class="mono">foremost</code> para extrair firmware; analisa metadados e cabeçalhos HTTP com <code class="mono">tshark</code>.</p>
+      </div>
+    </div>
+    <h3 style="font-size:16px;margin:22px 0 10px">Construtor de filtros Wireshark</h3>
+    <p class="lede" style="margin-top:0">Para cada situação, escolhe o filtro de exibição correcto entre as opções.</p>
+    <div class="stack" id="filterquiz"></div>
+
+    <h3 style="font-size:16px;margin:30px 0 10px">Simulador: análise de firmware de uma câmara IoT apreendida</h3>
+    <p class="lede" style="margin-top:0">Cenário real de laboratório: apreendeste uma câmara IP doméstica suspeita de estar numa botnet. Extraíste o firmware da flash (<code class="mono">firmware_camera.bin</code>) e vais analisá-lo sem o executar, exactamente como na Actividade 4 do guião. Corre os comandos abaixo, por ordem.</p>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn" id="btnHash1">1. sha256sum firmware_camera.bin</button>
+        <button class="btn" id="btnBinwalk" disabled>2. binwalk firmware_camera.bin</button>
+        <button class="btn" id="btnExtract" disabled>3. binwalk -e firmware_camera.bin</button>
+        <button class="btn" id="btnHash2" disabled>4. sha256sum firmware_camera.bin (confirmar)</button>
+      </div>
+      <div class="binwalk-out" id="binwalkOut">$ à espera do passo 1 — calcular o hash do ficheiro original antes de qualquer análise…</div>
+      <div class="extree" id="extree">
+        <div class="ln">squashfs-root/</div>
+        <div class="ln">├── etc/</div>
+        <div class="ln">│   ├── passwd</div>
+        <div class="ln">│   └── <span class="hl">wifi_config.conf</span>  <span class="muted">← ficheiro de configuração em texto simples</span></div>
+        <div class="ln">├── usr/bin/rtsp_server</div>
+        <div class="ln">└── www/cgi-bin/login.cgi</div>
+        <div class="ln" style="margin-top:8px">$ cat squashfs-root/etc/<span class="hl">wifi_config.conf</span></div>
+        <div class="ln">ssid=CAM_DOMESTICA_42</div>
+        <div class="ln" style="color:var(--bad)">psk=<span class="hl">admin1234</span>  <span class="muted">← credencial Wi-Fi em texto simples, dentro do firmware</span></div>
+      </div>
+    </div>
+    <div class="stack" id="firmquiz" style="margin-top:16px"></div>
+  </section>
+
+  <section class="section" data-sec="etica">
+    <div class="eyebrow">07 · Teoria + Cenários</div>
+    <h2>Ética e Boas Práticas</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px">Boas práticas</h3>
+        <ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.75">
+          <li>Usa <i>write blockers</i> para evitar alterações nos dados originais</li>
+          <li>Calcula hashes (MD5, SHA256) para validar integridade</li>
+          <li>Regista todos os passos — data, hora, operador, ferramentas</li>
+          <li>Mantém cópias de segurança das evidências recolhidas</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:14px;margin-bottom:8px">Princípios éticos</h3>
+        <ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.75">
+          <li>Respeita a privacidade: obtém mandado ou consentimento explícito</li>
+          <li>Evita examinar dados pessoais não relacionados com o caso</li>
+          <li>Mantém confidencialidade sobre informação sensível</li>
+          <li>Sê transparente sobre métodos e limitações da análise</li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted" style="font-size:12.5px;margin-top:10px">Falhas éticas podem invalidar provas — ISO/IEC 27037:2012 (Guidelines for identification, collection, acquisition and preservation of digital evidence).</p>
+    <h3 style="font-size:16px;margin:22px 0 10px">Exercício: boa prática ou falha ética?</h3>
+    <div class="stack" id="ethicsquiz"></div>
+  </section>
+
+  <section class="section" data-sec="reflexao">
+    <div class="eyebrow">08 · Reflexão</div>
+    <h2>Perguntas de Reflexão</h2>
+    <p class="lede">Escreve a tua resposta antes de revelares a orientação sugerida — o objectivo é pensares criticamente antes de confirmares.</p>
+    <div class="stack" id="reflexgrid"></div>
+  </section>
+
+  <section class="section" data-sec="revisao">
+    <div class="eyebrow">09 · Revisão final</div>
+    <h2>Revisão Global</h2>
+    <p class="lede">Dez perguntas misturando todas as secções da Aula VII. O resultado não é gravado — serve apenas para auto-avaliação.</p>
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="stack" id="finalquiz" style="margin-top:16px"></div>
+  </section>
+
+  <footer class="pagefoot">Material de apoio interactivo — PTP II: Laboratório de Redes e Dados Forensic · Aula VII, Forense IoT e Dispositivos Móveis · Msc. Armando Correia</footer>
+  </main>
+</div>
+
+<script>
+(function(){
+"use strict";
+var sections = ["intro","conceitos","protocolos","riscos","moveis","ferramentas","captura","etica","reflexao","revisao"];
+var labels = {intro:"Introdução",conceitos:"Conceitos de IoT",protocolos:"Protocolos",riscos:"Riscos e Ameaças",moveis:"Forense Móvel",ferramentas:"Ferramentas",captura:"Captura e Extracção",etica:"Ética",reflexao:"Reflexão",revisao:"Revisão Final"};
+
+function buildNav(container, mobile){
+  sections.forEach(function(s,i){
+    var el = document.createElement('div');
+    el.className = 'navitem' + (i===0?' active':'');
+    el.dataset.sec = s;
+    el.innerHTML = '<span class="n">'+String(i).padStart(2,'0')+'</span><span>'+labels[s]+'</span>';
+    el.addEventListener('click', function(){ goTo(s); });
+    container.appendChild(el);
+  });
+}
+buildNav(document.getElementById('navlist'), false);
+buildNav(document.getElementById('mobnav'), true);
+
+function goTo(sec){
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.toggle('active', s.dataset.sec===sec); });
+  document.querySelectorAll('.navitem').forEach(function(n){ n.classList.toggle('active', n.dataset.sec===sec); });
+  window.scrollTo({top:0,behavior:'instant' in window ? 'instant':'auto'});
+}
+document.querySelectorAll('[data-goto]').forEach(function(el){
+  el.addEventListener('click', function(){ goTo(el.dataset.goto); });
+});
+
+/* ---------- progress tracking ---------- */
+var totalExercises = 0, doneExercises = 0;
+function registerExercise(){ totalExercises++; }
+function markDone(){ doneExercises++; updateProgress(); }
+var progDone = {};
+function markOnce(id){
+  if(progDone[id]) return;
+  progDone[id] = true;
+  markDone();
+}
+function updateProgress(){
+  var pct = totalExercises ? Math.round(100*doneExercises/totalExercises) : 0;
+  document.getElementById('progpct').textContent = pct + '%';
+  document.getElementById('progbar').style.width = pct + '%';
+}
+
+/* ---------- identificação, pontuação (0-20) e envio de resultados ---------- */
+var ENDPOINT = "https://script.google.com/macros/s/AKfycbwNu4RJAx99wqF2o-aXF5p6GRp6ARkNmuod_aGO7imXpHVg30AZ_g292vlFW120uts/exec";
+var student = {nome:"", numero:""};
+var scoredTotal = 0, scoreAnswers = {}, sendTimer = null, sendFails = 0;
+function setStatus(txt, cls){ var s=document.getElementById('spStatus'); s.textContent=txt; s.className='st '+(cls||''); }
+function scoreNow(){
+  var n=0, r=0;
+  Object.keys(scoreAnswers).forEach(function(k){ r++; if(scoreAnswers[k]) n++; });
+  return {acertos:n, respondidas:r, nota: scoredTotal? Math.round(n/scoredTotal*200)/10 : 0};
+}
+function renderScore(){
+  var s=scoreNow();
+  document.getElementById('spNota').textContent = s.nota.toFixed(1);
+  document.getElementById('spCount').textContent = s.acertos+'/'+scoredTotal+' certas';
+}
+function sendScore(){
+  if(!ENDPOINT || false || !student.numero) { setStatus('modo de teste', ''); return; }
+  var s=scoreNow();
+  setStatus('a enviar…','');
+  fetch(ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({numero:student.numero,nome:student.nome,acertos:s.acertos,respondidas:s.respondidas,total:scoredTotal,answers:scoreAnswers})})
+  .then(function(){ sendFails=0; setStatus('enviado ✓','ok'); })
+  .catch(function(){ sendFails++; setStatus('falha de envio — a tentar de novo','bad'); clearTimeout(sendTimer); sendTimer=setTimeout(sendScore, Math.min(15000, 3000*sendFails)); });
+}
+function recordAnswer(id, ok){
+  scoreAnswers[id] = !!ok;
+  renderScore();
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(sendScore, 700);
+}
+(function(){
+  var gate=document.getElementById('gate'), form=document.getElementById('gateForm');
+  try{ document.getElementById('stuNome').value = localStorage.getItem('forense7_nome')||''; document.getElementById('stuNum').value = localStorage.getItem('forense7_num')||''; }catch(e){}
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var nome=document.getElementById('stuNome').value.trim().replace(/\s+/g,' ');
+    var num=document.getElementById('stuNum').value.trim();
+    var err=document.getElementById('gateErr');
+    if(nome.length<3){ err.textContent='Escreve o teu nome completo.'; return; }
+    if(!/^[A-Za-z0-9._\/-]{3,30}$/.test(num)){ err.textContent='O número deve ter entre 3 e 30 caracteres, sem espaços.'; return; }
+    student={nome:nome, numero:num};
+    try{ localStorage.setItem('forense7_nome',nome); localStorage.setItem('forense7_num',num); }catch(e){}
+    gate.hidden=true;
+    document.getElementById('scorepill').hidden=false;
+    renderScore();
+    sendScore();
+  });
+})();
+
+/* ---------- simple MC question builder (single-answer reveal) ---------- */
+function wireSimpleQ(qEl, idForProgress){
+  scoredTotal++;
+  var opts = qEl.querySelectorAll('.opt');
+  var fb = qEl.querySelector('.fb');
+  var answered = false;
+  opts.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(answered) return;
+      answered = true;
+      var ok = btn.dataset.ok === '1';
+      opts.forEach(function(b){ b.disabled = true; });
+      btn.classList.add(ok?'correct':'wrong');
+      if(!ok){
+        var correctBtn = Array.prototype.find.call(opts, function(b){ return b.dataset.ok==='1'; });
+        if(correctBtn) correctBtn.classList.add('correct');
+      }
+      fb.textContent = ok ? 'Correcto.' : 'Não é essa — repara na opção assinalada a verde.';
+      fb.className = 'fb show ' + (ok?'ok':'bad');
+      recordAnswer(idForProgress, ok);
+      markOnce(idForProgress);
+    });
+  });
+}
+document.querySelectorAll('.q[data-q]').forEach(function(qEl){
+  registerExercise();
+  wireSimpleQ(qEl, qEl.dataset.q);
+});
+
+/* ================= Conceitos: flip cards ================= */
+var flipData = [
+  {f:"Câmeras de segurança IP", b:"Geram fluxo de vídeo contínuo (RTSP) — fonte directa de evidência visual, mas com grande volume de dados voláteis."},
+  {f:"Smartwatches / fitness", b:"Registam localização e sinais biométricos — úteis para reconstruir cronologia e movimentação de uma pessoa."},
+  {f:"Sensores domésticos", b:"Eventos de portas/temperatura via MQTT — podem corroborar ou contradizer um álibi."},
+  {f:"Assistentes virtuais", b:"Guardam histórico de comandos de voz na cloud do fabricante — acesso depende normalmente de pedido legal ao fornecedor."},
+  {f:"Conectividade constante", b:"Significa que o dispositivo está potencialmente a comunicar (e a gerar tráfego capturável) 24/7."},
+  {f:"Interoperabilidade", b:"Múltiplos fabricantes no mesmo ecossistema complicam a cadeia de custódia, como referido nos riscos forenses."},
+];
+var flipgrid = document.getElementById('flipgrid');
+flipData.forEach(function(d){
+  var el = document.createElement('div');
+  el.className = 'flip';
+  el.innerHTML = '<div class="flip-in"><div class="flip-f"><b style="font-size:13.5px">'+d.f+'</b><span class="tap">toca para ver</span></div><div class="flip-b"><span style="font-size:12.5px;line-height:1.5">'+d.b+'</span></div></div>';
+  el.addEventListener('click', function(){ el.classList.toggle('on'); markOnce('flip'); });
+  flipgrid.appendChild(el);
+});
+registerExercise();
+
+/* ================= MQTT simulator ================= */
+var subs = [];
+var feed = document.getElementById('feed');
+var subList = document.getElementById('subList');
+function renderSubs(){
+  subList.innerHTML = '';
+  subs.forEach(function(t,i){
+    var el = document.createElement('div');
+    el.className = 'sub-item';
+    el.innerHTML = '<span class="mono">mosquitto_sub -t "'+t+'"</span>';
+    var rm = document.createElement('button');
+    rm.className='btn sm'; rm.textContent='remover';
+    rm.addEventListener('click', function(){ subs.splice(i,1); renderSubs(); });
+    el.appendChild(rm);
+    subList.appendChild(el);
+  });
+}
+function topicMatch(sub, topic){
+  if(sub===topic) return true;
+  var sp = sub.split('/'), tp = topic.split('/');
+  for(var i=0;i<sp.length;i++){
+    if(sp[i]==='#') return true;
+    if(sp[i]==='+'){ if(i>=tp.length) return false; continue; }
+    if(sp[i]!==tp[i]) return false;
+  }
+  return sp.length===tp.length;
+}
+document.getElementById('btnSub').addEventListener('click', function(){
+  var v = document.getElementById('subTopic').value.trim();
+  if(!v) return;
+  subs.push(v); renderSubs();
+  document.getElementById('subTopic').value='';
+});
+var mqttExerciseDone = false;
+document.getElementById('btnPub').addEventListener('click', function(){
+  var topic = document.getElementById('pubTopic').value.trim();
+  var msg = document.getElementById('pubMsg').value.trim();
+  if(!topic || !msg) return;
+  var matched = subs.some(function(s){ return topicMatch(s, topic); });
+  var ln = document.createElement('div');
+  ln.className='ln';
+  var time = new Date().toLocaleTimeString();
+  if(matched){
+    ln.innerHTML = '<span class="t">['+time+']</span> PUBLISH <b>'+topic+'</b> → "'+msg+'" <span style="color:#36d6ad">[entregue a subscritor]</span>';
+    if(!mqttExerciseDone){ mqttExerciseDone = true; markOnce('mqtt'); }
+  } else {
+    ln.innerHTML = '<span class="t">['+time+']</span> <span style="color:#777">PUBLISH '+topic+' → "'+msg+'" (ninguém subscrito — não aparece no feed de um cliente MQTT, só numa captura de pacotes)</span>';
+  }
+  feed.appendChild(ln);
+  feed.scrollTop = feed.scrollHeight;
+  document.getElementById('pubMsg').value='';
+});
+registerExercise();
+
+/* ================= Riscos: vulnerability -> consequence match ================= */
+var riskItems = [
+  {v:"Senha padrão (admin/admin) na câmara IoT", opts:["Acesso não autorizado facilita ataques tipo Mirai e compromete a cadeia de custódia do dispositivo","O firmware deixa de poder ser actualizado","O protocolo RTSP deixa de funcionar"], ok:0},
+  {v:"Comunicação sem criptografia (sem TLS)", opts:["O dispositivo consome mais energia","Tráfego pode ser lido em texto simples por qualquer um na rede (eavesdropping)","Aumenta a velocidade da transmissão"], ok:1},
+  {v:"Firmware desactualizado", opts:["Melhora a performance do sensor","Introduz vulnerabilidades conhecidas e já exploradas publicamente, aumentando a superfície de ataque","Reduz o número de portas abertas"], ok:2},
+  {v:"Portas de rede expostas desnecessariamente", opts:["Facilita a análise forense ao investigador","Amplia a superfície de ataque disponível a terceiros não autorizados","Não tem impacto relevante em IoT"], ok:1},
+];
+var riskquiz = document.getElementById('riskquiz');
+riskItems.forEach(function(item,idx){
+  var el = document.createElement('div');
+  el.className = 'q';
+  el.innerHTML = '<b>'+item.v+'</b><p style="margin:6px 0 0;font-size:13.5px">Qual é a consequência forense mais directa?</p><div class="opts"></div><div class="fb"></div>';
+  var optsEl = el.querySelector('.opts');
+  item.opts.forEach(function(o,i){
+    var b = document.createElement('button');
+    b.className='opt'; b.textContent=o; b.dataset.ok = (i===item.ok)?'1':'0';
+    optsEl.appendChild(b);
+  });
+  riskquiz.appendChild(el);
+  registerExercise();
+  wireSimpleQ(el, 'risk'+idx);
+});
+
+/* ================= Forense móvel: sort scenarios ================= */
+var sortItems = [
+  {s:"Usaste adb shell pm list packages para listar as apps instaladas no telemóvel apreendido.", ok:"Lógica"},
+  {s:"Removeste o chip de memória da placa (chip-off) para copiar bit a bit o seu conteúdo.", ok:"Física"},
+  {s:"Extraíste apenas o ficheiro de base de dados do WhatsApp usando o Cellebrite UFED.", ok:"Arquivo"},
+  {s:"Leste a lista de contactos e SMS através de uma ligação ADB ao dispositivo desbloqueado.", ok:"Lógica"},
+  {s:"Fizeste uma análise via JTAG para aceder à memória interna de um telefone com ecrã partido.", ok:"Física"},
+];
+var sortgrid = document.getElementById('sortgrid');
+sortItems.forEach(function(item,idx){
+  var el = document.createElement('div');
+  el.className = 'sortcard';
+  el.innerHTML = '<span style="font-size:13.5px">'+item.s+'</span><div class="btns"></div><div class="fb" style="font-size:12.5px"></div>';
+  var btns = el.querySelector('.btns');
+  var fb = el.querySelector('.fb');
+  ["Lógica","Física","Arquivo"].forEach(function(opt){
+    var b = document.createElement('button');
+    b.className='btn sm'; b.textContent=opt;
+    b.addEventListener('click', function(){
+      if(el.classList.contains('done')) return;
+      el.classList.add('done');
+      Array.prototype.forEach.call(btns.children, function(x){ x.disabled=true; });
+      var ok = opt===item.ok;
+      b.style.borderColor = ok ? 'var(--ok)' : 'var(--bad)';
+      fb.classList.add('show');
+      fb.style.color = ok ? 'var(--ok)':'var(--bad)';
+      fb.textContent = ok ? 'Correcto: '+item.ok+'.' : 'Resposta correcta: '+item.ok+'.';
+      recordAnswer('sort'+idx, ok);
+      markOnce('sort'+idx);
+    });
+    btns.appendChild(b);
+  });
+  sortgrid.appendChild(el);
+  scoredTotal++;
+  registerExercise();
+});
+
+/* ================= Simulador: smartphone danificado/recuperado ================= */
+var devFiles = [
+  {path:"/dev/block/mmcblk0p12", label:"partição userdata — imagem completa (chip-off)", type:"Física", status:"ok", size:"29 GB", hash:"a1f3c9…7e02", note:"Cópia bit a bit obtida por chip-off; foi o único método viável porque o ecrã partido impedia desbloquear o aparelho e autorizar a depuração USB."},
+  {path:"/data/data/com.android.providers.telephony/sms.db", label:"base de dados de SMS/MMS", type:"Lógica (dentro da imagem física)", status:"ok", size:"184 KB", hash:"7cd2e1…44ab", note:"Teria sido recuperável tanto por extracção lógica directa (ADB) como, neste caso, dentro da própria imagem física."},
+  {path:"/data/data/com.whatsapp/databases/msgstore.db.crypt14", label:"container cifrado do WhatsApp", type:"Arquivo", status:"ok", size:"96 MB", hash:"4e9b02…c190", note:"Extraído isoladamente com Cellebrite UFED, sem imagem completa do disco — é o exemplo clássico de aquisição de arquivo."},
+  {path:"/sdcard/DCIM/Camera/IMG_2031.jpg", label:"fotografia activa", type:"Ficheiro intacto", status:"ok", size:"3.2 MB", hash:"9ab0f4…31dd", note:"Presente normalmente no sistema de ficheiros; não exigiu recuperação."},
+  {path:"/sdcard/DCIM/Camera/.trashed-1699999999-IMG_1987.jpg", label:"fotografia apagada pelo utilizador", type:"Recuperado por carving", status:"rec", size:"2.8 MB", hash:"11fa7d…0c56", note:"Só foi possível recuperar este ficheiro porque a aquisição foi física (acesso ao espaço não alocado); uma aquisição lógica normal não o teria devolvido."},
+  {path:"/data/data/com.instagram.android/cache/thumb_0099.jpg.part", label:"fragmento de cache recuperado", type:"Fragmento (carving parcial)", status:"rec", size:"44 KB", hash:"c2033a…99f1", note:"Fragmento incompleto recuperado do espaço não alocado — deve ser interpretado com cautela, sem certezas sobre o contexto original."},
+];
+var ftree = document.getElementById('ftree');
+var fdetail = document.getElementById('fdetail');
+function renderDetail(item){
+  fdetail.innerHTML =
+    '<b style="font-family:\'IBM Plex Mono\';font-size:12.5px">'+item.path+'</b>'+
+    '<div class="kv">'+
+      '<b>Descrição</b><span style="font-family:\'IBM Plex Sans\'">'+item.label+'</span>'+
+      '<b>Tipo de aquisição</b><span>'+item.type+'</span>'+
+      '<b>Tamanho</b><span>'+item.size+'</span>'+
+      '<b>SHA-256</b><span>'+item.hash+'</span>'+
+      '<b>Estado</b><span>'+(item.status==='ok'?'Íntegro, acesso directo':'Recuperado de espaço não alocado')+'</span>'+
+    '</div>'+
+    '<div class="note">'+item.note+'</div>';
+}
+devFiles.forEach(function(item, idx){
+  var el = document.createElement('div');
+  el.className = 'fitem' + (idx===0?' active':'');
+  el.innerHTML = '<span class="path">'+item.path+'</span><span class="fbadge '+item.status+'">'+(item.status==='ok'?'íntegro':'recuperado')+'</span>';
+  el.addEventListener('click', function(){
+    document.querySelectorAll('#ftree .fitem').forEach(function(x){ x.classList.remove('active'); });
+    el.classList.add('active');
+    renderDetail(item);
+    markOnce('devfiles');
+  });
+  ftree.appendChild(el);
+});
+renderDetail(devFiles[0]);
+registerExercise();
+
+var devsimQItems = [
+  {q:"Qual destes ficheiros só foi possível recuperar porque a aquisição foi física, e não lógica?", opts:["sms.db","msgstore.db.crypt14",".trashed-1699999999-IMG_1987.jpg"], ok:2},
+  {q:"O container msgstore.db.crypt14, extraído isoladamente com Cellebrite UFED, é um exemplo de que tipo de aquisição?", opts:["Lógica","Física","Arquivo"], ok:2},
+  {q:"Porque não foi possível fazer, neste caso, uma aquisição lógica directa via ADB?", opts:["Porque o Android não suporta ADB","Porque o ecrã partido impedia desbloquear o aparelho e autorizar a depuração USB","Porque o cartão SIM estava bloqueado"], ok:1},
+];
+var devsimquiz = document.getElementById('devsimquiz');
+devsimQItems.forEach(function(item,idx){
+  var el = document.createElement('div'); el.className='q';
+  el.innerHTML = '<p style="margin:0 0 4px;font-size:13.5px">'+item.q+'</p><div class="opts"></div><div class="fb"></div>';
+  var optsEl = el.querySelector('.opts');
+  item.opts.forEach(function(o,i){ var b=document.createElement('button'); b.className='opt'; b.textContent=o; b.dataset.ok=(i===item.ok)?'1':'0'; optsEl.appendChild(b); });
+  devsimquiz.appendChild(el);
+  registerExercise();
+  wireSimpleQ(el, 'devsim'+idx);
+});
+
+/* ================= Ferramentas ================= */
+var toolData = [
+  {n:"Cellebrite UFED", d:"Aquisição física e lógica de Android/iOS, extracção de dados de apps e recuperação de dados apagados."},
+  {n:"Oxygen Forensic Suite", d:"Análise de aplicações, comunicações e dados de geolocalização de dispositivos móveis."},
+  {n:"Autopsy / Sleuth Kit", d:"Extracção e análise de imagens de dispositivos, recuperação de ficheiros e análise de timeline."},
+  {n:"Wireshark / tcpdump", d:"Captura e análise de tráfego de rede em dispositivos IoT."},
+];
+var toolgrid = document.getElementById('toolgrid');
+toolData.forEach(function(t){
+  var el = document.createElement('div'); el.className='card';
+  el.innerHTML = '<h3 style="font-size:14px;margin-bottom:6px">'+t.n+'</h3><p style="font-size:13px" class="muted">'+t.d+'</p>';
+  toolgrid.appendChild(el);
+});
+
+var toolQItems = [
+  {task:"Precisas de recuperar ficheiros apagados e construir uma timeline de actividade num disco de imagem.", opts:["Oxygen Forensic Suite","Autopsy / Sleuth Kit","Wireshark"], ok:1},
+  {task:"Precisas de capturar e analisar tráfego de rede gerado por um sensor IoT.", opts:["Cellebrite UFED","Wireshark / tcpdump","Oxygen Forensic Suite"], ok:1},
+  {task:"Precisas de extrair dados de geolocalização e histórico de comunicações de um smartphone apreendido.", opts:["Oxygen Forensic Suite","Autopsy / Sleuth Kit","tcpdump"], ok:0},
+  {task:"Precisas de uma aquisição física completa de um Android bloqueado, incluindo dados apagados.", opts:["Wireshark","Cellebrite UFED","Autopsy"], ok:1},
+];
+var toolquiz = document.getElementById('toolquiz');
+toolQItems.forEach(function(item,idx){
+  var el = document.createElement('div'); el.className='q';
+  el.innerHTML = '<p style="margin:0 0 4px;font-size:13.5px">'+item.task+'</p><div class="opts"></div><div class="fb"></div>';
+  var optsEl = el.querySelector('.opts');
+  item.opts.forEach(function(o,i){ var b=document.createElement('button'); b.className='opt'; b.textContent=o; b.dataset.ok=(i===item.ok)?'1':'0'; optsEl.appendChild(b); });
+  toolquiz.appendChild(el);
+  registerExercise();
+  wireSimpleQ(el, 'tool'+idx);
+});
+
+/* ================= Filtros Wireshark ================= */
+var filterItems = [
+  {s:"Queres isolar apenas o tráfego vindo da câmara IoT com IP 192.168.1.1.", opts:["ip.src == 192.168.1.1","tcp.port == 80","mqtt.topic"], ok:0},
+  {s:"Queres analisar comunicações entre sensores e um broker MQTT.", opts:["rtsp","mqtt","coap"], ok:1},
+  {s:"Queres isolar pacotes de um stream de câmara IP que usa a porta UDP standard de RTSP.", opts:["udp.port == 554","tcp.port == 554","udp.port == 1883"], ok:0},
+  {s:"No terminal, queres capturar tráfego na interface wlan0 e guardar num ficheiro iot_stream.pcap.", opts:["tcpdump -i wlan0 -w iot_stream.pcap","tcpdump -r iot_stream.pcap","tshark -D"], ok:0},
+];
+var filterquiz = document.getElementById('filterquiz');
+filterItems.forEach(function(item,idx){
+  var el = document.createElement('div'); el.className='q';
+  el.innerHTML = '<p style="margin:0 0 4px;font-size:13.5px">'+item.s+'</p><div class="opts"></div><div class="fb"></div>';
+  var optsEl = el.querySelector('.opts');
+  item.opts.forEach(function(o,i){ var b=document.createElement('button'); b.className='opt'; b.innerHTML='<code class="mono">'+o+'</code>'; b.dataset.ok=(i===item.ok)?'1':'0'; optsEl.appendChild(b); });
+  filterquiz.appendChild(el);
+  registerExercise();
+  wireSimpleQ(el, 'filter'+idx);
+});
+
+/* ================= Simulador: firmware IoT com binwalk ================= */
+(function(){
+  var out = document.getElementById('binwalkOut');
+  var extree = document.getElementById('extree');
+  var b1 = document.getElementById('btnHash1'), b2 = document.getElementById('btnBinwalk'), b3 = document.getElementById('btnExtract'), b4 = document.getElementById('btnHash2');
+  function append(html){ out.innerHTML += '\n'+html; out.scrollTop = out.scrollHeight; }
+  b1.addEventListener('click', function(){
+    out.innerHTML = '$ sha256sum firmware_camera.bin';
+    append('d41a9c3e7f2b1a08...e45f  firmware_camera.bin   <span class="muted">// hash calculado antes de qualquer análise</span>');
+    b1.disabled = true; b2.disabled = false;
+    markOnce('fw1');
+  });
+  b2.addEventListener('click', function(){
+    append('\n$ binwalk firmware_camera.bin\n\nDECIMAL       HEXADECIMAL     DESCRIPTION\n--------------------------------------------------------------\n0             0x0             uImage header, header size: 64 bytes\n64            0x40            LZMA compressed data\n1245184       0x130000        Squashfs filesystem, little endian, version 4.0\n9830400       0x960000        CRC32 checksum');
+    b2.disabled = true; b3.disabled = false;
+    markOnce('fw2');
+  });
+  b3.addEventListener('click', function(){
+    append('\n$ binwalk -e firmware_camera.bin\n\nExtraindo sistema de ficheiros Squashfs para ./_firmware_camera.bin.extracted/squashfs-root/ ...');
+    extree.classList.add('show');
+    b3.disabled = true; b4.disabled = false;
+    markOnce('fw3');
+  });
+  b4.addEventListener('click', function(){
+    append('\n$ sha256sum firmware_camera.bin\nd41a9c3e7f2b1a08...e45f  firmware_camera.bin   <span style="color:#36d6ad">// idêntico ao hash inicial — integridade preservada</span>');
+    b4.disabled = true;
+    markOnce('fw4');
+  });
+})();
+registerExercise();
+
+var firmQItems = [
+  {q:"Que risco de segurança (da secção Riscos e Ameaças) este achado — psk=admin1234 dentro do firmware — evidencia melhor?", opts:["Firmware desactualizado","Falta de criptografia / credenciais em texto simples","Porta de rede exposta desnecessariamente"], ok:1},
+  {q:"Porque se calcula o hash do firmware antes E depois da extracção com binwalk -e?", opts:["Para acelerar o processo de extracção","Para provar que o ficheiro original não foi alterado durante a análise","Porque o binwalk exige dois hashes para funcionar"], ok:1},
+  {q:"O que faz exactamente o comando binwalk -e?", opts:["Apaga o firmware original após a análise","Apenas identifica assinaturas, sem extrair nada","Extrai o conteúdo identificado (ex.: sistema de ficheiros squashfs) para uma pasta local"], ok:2},
+];
+var firmquiz = document.getElementById('firmquiz');
+firmQItems.forEach(function(item,idx){
+  var el = document.createElement('div'); el.className='q';
+  el.innerHTML = '<p style="margin:0 0 4px;font-size:13.5px">'+item.q+'</p><div class="opts"></div><div class="fb"></div>';
+  var optsEl = el.querySelector('.opts');
+  item.opts.forEach(function(o,i){ var b=document.createElement('button'); b.className='opt'; b.textContent=o; b.dataset.ok=(i===item.ok)?'1':'0'; optsEl.appendChild(b); });
+  firmquiz.appendChild(el);
+  registerExercise();
+  wireSimpleQ(el, 'firm'+idx);
+});
+
+/* ================= Ética: boa prática ou falha? ================= */
+var ethicsItems = [
+  {s:"O investigador trabalha sempre sobre uma cópia da evidência, nunca sobre o ficheiro original.", ok:true},
+  {s:"Durante a análise de um smartphone apreendido, o investigador abre fotos pessoais sem relação com o caso, por curiosidade.", ok:false},
+  {s:"O investigador calcula o hash SHA256 do ficheiro de firmware antes e depois da análise com binwalk.", ok:true},
+  {s:"O investigador parte do princípio de que tem autorização implícita e não verifica se existe mandado para aceder aos dados do dispositivo.", ok:false},
+  {s:"O investigador documenta data, hora, operador e todas as ferramentas usadas em cada passo da análise.", ok:true},
+];
+var ethicsquiz = document.getElementById('ethicsquiz');
+ethicsItems.forEach(function(item,idx){
+  var el = document.createElement('div'); el.className='q';
+  el.innerHTML = '<p style="margin:0 0 4px;font-size:13.5px">'+item.s+'</p><div class="opts"></div><div class="fb"></div>';
+  var optsEl = el.querySelector('.opts');
+  [["Boa prática", item.ok],["Falha ética", !item.ok]].forEach(function(pair){
+    var b=document.createElement('button'); b.className='opt'; b.textContent=pair[0]; b.dataset.ok = pair[1]?'1':'0'; optsEl.appendChild(b);
+  });
+  ethicsquiz.appendChild(el);
+  registerExercise();
+  wireSimpleQ(el, 'ethics'+idx);
+});
+
+/* ================= Reflexão ================= */
+var reflexItems = [
+  {q:"Após estudar os conceitos de IoT e protocolos como MQTT, qual risco considera mais crítico numa investigação forense? Como isso impacta a preservação de evidências?", s:"Orientação: a ausência generalizada de criptografia (plaintext em MQTT/CoAP) é frequentemente apontada como o risco mais crítico, porque expõe dados sensíveis a qualquer pessoa na rede e, ao mesmo tempo, os logs voláteis dos dispositivos podem ser sobrescritos antes da captura — exigindo captura de tráfego imediata e prolongada."},
+  {q:"Reflicta sobre aquisição lógica vs. física em dispositivos móveis. Porque pode a criptografia complicar a extracção? Que medidas garantiriam a integridade?", s:"Orientação: a aquisição física exige acesso de baixo nível à memória (JTAG, chip-off), que a criptografia do dispositivo (FileVault, Android FBE) pode tornar ilegível sem a chave. A integridade garante-se com hashing (MD5/SHA256) antes e depois, write blockers e documentação completa da cadeia de custódia."},
+  {q:"Ao capturar tráfego de uma câmara IP, o que faria ao identificar um stream não criptografado? Como isso se relaciona com a cadeia de custódia?", s:"Orientação: documentar imediatamente o achado (capturas de ecrã, hash do .pcap), preservar o ficheiro original sem alterações e registar quem, quando e como capturou o tráfego — a ausência de TLS deve ser reportada como uma vulnerabilidade relevante para o caso, mantendo sempre a cadeia de custódia do .pcap."},
+  {q:"Ao extrair mensagens de uma app móvel, como equilibrar utilidade forense com questões éticas de privacidade? Que desafios surgem na extracção de dados de localização?", s:"Orientação: limitar a extracção ao estritamente relevante para o mandado/autorização, evitar examinar conversas sem relação com o caso, e documentar o âmbito da análise. Dados de localização podem estar dispersos em múltiplas apps/caches, exigindo correlação cuidadosa e validação da precisão/timestamp de cada fonte."},
+  {q:"Num caso com câmara IoT e smartphone, como a combinação de captura de tráfego e extracção de localização poderia reconstruir um timeline? Que boas práticas aplicaria?", s:"Orientação: cruzar timestamps do tráfego RTSP/MQTT capturado com os registos de localização extraídos do telemóvel (logicamente, via ADB, ou por ficheiro) permite reconstruir uma sequência de eventos coerente. Boas práticas: sincronizar relógios das fontes, calcular hashes de todas as evidências, documentar cada passo e preservar os originais intocados."},
+];
+var reflexgrid = document.getElementById('reflexgrid');
+reflexItems.forEach(function(item,idx){
+  var el = document.createElement('div'); el.className='card';
+  el.innerHTML = '<b style="font-size:13.5px">'+(idx+1)+'. '+item.q+'</b>'+
+    '<textarea style="margin-top:10px" placeholder="Escreve aqui a tua resposta..."></textarea>'+
+    '<div class="row" style="margin-top:8px"><button class="btn sm" data-i="'+idx+'">ver orientação de resposta</button></div>'+
+    '<div class="reveal" style="font-size:13px">'+item.s+'</div>';
+  var btn = el.querySelector('button');
+  var rev = el.querySelector('.reveal');
+  btn.addEventListener('click', function(){ rev.classList.toggle('show'); markOnce('reflex'+idx); });
+  reflexgrid.appendChild(el);
+  registerExercise();
+});
+
+/* ================= Revisão final ================= */
+var finalItems = [
+  {q:"Quantos dispositivos IoT estimava-se estarem ligados em 2025?", opts:["Cerca de 1 milhão","Mais de 18 mil milhões","Cerca de 500 mil"], ok:1},
+  {q:"Qual protocolo usa o modelo publish/subscribe?", opts:["RTSP","CoAP","MQTT"], ok:2},
+  {q:"Qual protocolo é tipicamente usado por câmaras IP para streaming de vídeo?", opts:["RTSP","MQTT","CoAP"], ok:0},
+  {q:"A botnet Mirai ficou conhecida por explorar sobretudo qual vulnerabilidade?", opts:["Senhas padrão em dispositivos IoT","Vulnerabilidades em TLS 1.3","Falhas no protocolo RTSP"], ok:0},
+  {q:"A aquisição via ADB (lista de apps, contactos) é um exemplo de aquisição...", opts:["Física","Lógica","De arquivo"], ok:1},
+  {q:"JTAG e chip-off são técnicas associadas a que tipo de aquisição móvel?", opts:["Lógica","De arquivo","Física"], ok:2},
+  {q:"Qual ferramenta é mais indicada para recuperar ficheiros apagados e montar uma timeline?", opts:["Autopsy / Sleuth Kit","Oxygen Forensic Suite","mosquitto_pub"], ok:0},
+  {q:"Que comando captura tráfego na interface wlan0 para um ficheiro .pcap?", opts:["tcpdump -i wlan0 -w iot_stream.pcap","adb shell pm list packages","binwalk -e firmware.bin"], ok:0},
+  {q:"Qual norma é referida a propósito de identificação, recolha, aquisição e preservação de evidência digital?", opts:["ISO/IEC 30141:2018","ISO/IEC 27037:2012","ISO/IEC 27001:2013"], ok:1},
+  {q:"Porque é recomendado o uso de laboratórios virtuais simulados nesta área?", opts:["Porque são mais rápidos do que hardware real","Porque permitem desenvolver competências sem risco de danificar equipamento real ou perder evidências","Porque substituem totalmente a necessidade de forense em IoT real"], ok:1},
+];
+var finalquiz = document.getElementById('finalquiz');
+var finalScore = 0, finalAnswered = 0;
+function renderScoreboard(){
+  document.getElementById('scoreboard').innerHTML =
+    '<div class="sb">Respondidas<b>'+finalAnswered+' / '+finalItems.length+'</b></div>'+
+    '<div class="sb">Correctas<b>'+finalScore+'</b></div>'+
+    '<div class="sb">Taxa de acerto<b>'+(finalAnswered? Math.round(100*finalScore/finalAnswered):0)+'%</b></div>';
+}
+renderScoreboard();
+finalItems.forEach(function(item,idx){
+  var el = document.createElement('div'); el.className='q';
+  el.innerHTML = '<b style="font-size:13.5px">'+(idx+1)+'. '+item.q+'</b><div class="opts"></div><div class="fb"></div>';
+  var optsEl = el.querySelector('.opts');
+  var fb = el.querySelector('.fb');
+  var answered = false;
+  item.opts.forEach(function(o,i){
+    var b = document.createElement('button'); b.className='opt'; b.textContent=o; b.dataset.ok=(i===item.ok)?'1':'0';
+    b.addEventListener('click', function(){
+      if(answered) return; answered = true;
+      var ok = b.dataset.ok==='1';
+      Array.prototype.forEach.call(optsEl.children, function(x){ x.disabled=true; });
+      b.classList.add(ok?'correct':'wrong');
+      if(!ok){ Array.prototype.forEach.call(optsEl.children, function(x){ if(x.dataset.ok==='1') x.classList.add('correct'); }); }
+      fb.textContent = ok?'Correcto.':'Resposta correcta assinalada a verde.';
+      fb.className = 'fb show '+(ok?'ok':'bad');
+      finalAnswered++; if(ok) finalScore++;
+      renderScoreboard();
+      recordAnswer('final'+idx, ok);
+      markOnce('final'+idx);
+    });
+    optsEl.appendChild(b);
+  });
+  finalquiz.appendChild(el);
+  scoredTotal++;
+  registerExercise();
+});
+
+updateProgress();
+renderScore();
+})();
+</script>
+
+
+
+</body></html>
